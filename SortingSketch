@@ -1,0 +1,393 @@
+#include <Wire.h>
+#include <Servo.h> 
+#include <Adafruit_Sensor.h>
+#include <Adafruit_TSL2561_U.h>
+
+/*  GLOBAL VARIABLES
+ *  ====================================================================================================
+*/
+uint16_t BaselineValue1 = 0;
+uint16_t BaselineValue2 = 0;
+
+uint16_t CurrentValue1 = 0;
+uint16_t CurrentValue2 = 0;
+
+int data1[15];
+int data2[15];
+     
+int FlipperPin = 9;
+int IntakePin=10;
+     
+Servo Flipper;
+Servo Intake;
+
+//Declare Sensor Names
+Adafruit_TSL2561_Unified tsl1 = Adafruit_TSL2561_Unified(TSL2561_ADDR_LOW, 2);
+Adafruit_TSL2561_Unified tsl2 = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 1);
+
+/* SENSOR CONFIGURATION
+ *  NEEDS: NOTHING
+ *  ====================================================================================================
+*/
+void configureSensor(void)
+{
+  sensor_t sensor1;
+  sensor_t sensor2;
+  tsl1.getSensor(&sensor1);
+  tsl2.getSensor(&sensor2);
+  
+  /* You can also manually set the gain or enable auto-gain support */
+  // tsl.setGain(TSL2561_GAIN_1X);      /* No gain ... use in bright light to avoid sensor saturation */
+  // tsl.setGain(TSL2561_GAIN_16X);     /* 16x gain ... use in low light to boost sensitivity */
+  tsl1.enableAutoRange(true);           /* Auto-gain ... switches automatically between 1x and 16x */
+  
+  /* Changing the integration time gives you better sensor resolution (402ms = 16-bit data) */
+  // tsl1.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);     /* fast but low resolution */
+  tsl1.setIntegrationTime(TSL2561_INTEGRATIONTIME_101MS);       /* medium resolution and speed   */
+  // tsl1.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);    /* 16-bit data but slowest conversions */
+  
+    /* You can also manually set the gain or enable auto-gain support */
+  // tsl.setGain(TSL2561_GAIN_1X);      /* No gain ... use in bright light to avoid sensor saturation */
+  // tsl.setGain(TSL2561_GAIN_16X);     /* 16x gain ... use in low light to boost sensitivity */
+  tsl2.enableAutoRange(true);            /* Auto-gain ... switches automatically between 1x and 16x */
+  
+  /* Changing the integration time gives you better sensor resolution (402ms = 16-bit data) */
+  // tsl2.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);     /* fast but low resolution */
+  tsl2.setIntegrationTime(TSL2561_INTEGRATIONTIME_101MS);       /* medium resolution and speed   */
+  // tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);     /* 16-bit data but slowest conversions */
+}
+
+/*  MOVING FUNCTION 
+ *  NEEDS:  DIRECTIONAL CHARACTER - FORWARD,BACKWARDS,INTAKE
+ *  ====================================================================================================
+*/
+void moving(char directshun){
+  switch(directshun)
+  {
+    case('C'):{
+      Serial.println("Centering");
+      Flipper.attach(FlipperPin);
+      for(uint16_t i=0; i<500; i++)
+      {
+        Flipper.write(90);
+        delay(1);
+      }
+      Flipper.detach();
+    }
+    case('I'):{
+      delay(500);
+      Intake.attach(IntakePin);
+      Intake.write(45);
+      delay(190);
+      Intake.write(90);
+      Intake.detach();
+      Serial.println("Intake Active");
+      //delay(500);
+      break;
+    }
+    case('F'):{
+      Flipper.attach(FlipperPin);
+      Flipper.write(0);
+      delay(500);
+      Serial.println("Flipper Forwards hit1");
+      Flipper.detach();
+      delay(1000);
+      Serial.println("Flipper Forwards hit2");
+      Flipper.attach(FlipperPin);
+      for(uint16_t i=0; i<500; i++)
+      {
+        Flipper.write(90);
+        delay(1);
+      }
+      Flipper.detach();
+      Serial.println("2");
+      break;
+    }
+    case('B'):{
+      Flipper.attach(FlipperPin);
+      Flipper.write(150);
+      delay(500);                                  
+      Serial.println("Flipper Backwards hit1");
+      Flipper.write(180);
+      delay(200);
+      Serial.println("Flipper Backwards hit2");
+      Flipper.detach();
+      Serial.println("Flipper Backwards Pause");
+      delay(2000);
+     
+      //run forwards
+      Flipper.attach(FlipperPin);
+      Flipper.write(140);
+      delay(400);
+      Flipper.write(0);
+      delay(400);
+      Flipper.detach();
+      delay(1000);
+          
+      //
+      Flipper.attach(FlipperPin);
+      for(uint16_t i=0; i<500; i++)
+      {
+        Flipper.write(90);
+        delay(1);
+      }
+      Flipper.detach();
+      break;
+    }
+    case('S'):{
+      Serial.println("Shake");
+      Flipper.attach(FlipperPin);
+      Flipper.write(150);
+      delay(250);
+      Flipper.write(90);
+      delay(200);
+      Flipper.write(150);
+      delay(200);
+      Flipper.write(90);
+      delay(200);
+      Flipper.write(150);
+      delay(200);
+      Flipper.write(90);
+      //delay(100);
+      //Flipper.detach();
+      //delay(2000);
+
+      Serial.println("Centering");
+      //Flipper.attach(FlipperPin);
+      for(uint16_t i=0; i<500; i++)
+      {
+        Flipper.write(90);
+        delay(1);
+      }
+      Flipper.detach();
+      break;
+    }
+    default:{
+      Serial.println("Default");
+      Flipper.attach(FlipperPin);
+      for(uint16_t i=0; i<500; i++)
+      {
+        Flipper.write(90);
+        delay(1);
+      }
+      Flipper.detach();
+    }
+  }
+}
+
+/*  READ IN BASELINE VALUE
+ *  NEEDS: NOTHING
+ *  ====================================================================================================
+*/
+void ReadBaselineValue(void)
+{
+  /* Get a new sensor event */
+  sensors_event_t event1;
+  sensors_event_t event2;
+  tsl1.getEvent(&event1);
+  tsl2.getEvent(&event2);
+
+  /* Read in Event Data to GlobalVars */
+  BaselineValue1 = event1.light;
+  BaselineValue2 = event2.light;
+}
+
+
+/*  READ IN CURRENT VALUE
+ *  NEEDS: NOTHING
+ *  ====================================================================================================
+*/
+void ReadCurrentValue(void)
+{
+  /* Get a new sensor event */
+  sensors_event_t event1;
+  sensors_event_t event2;
+  tsl1.getEvent(&event1);
+  tsl2.getEvent(&event2);
+
+  /* Read in Event Data to GlobalVars */
+  CurrentValue1 = event1.light;
+  CurrentValue2 = event2.light;
+}
+
+
+/*  MATH STUFF
+ *  NEEDS: GLOBAL VARIABLES OF CURRENT VERSUS BASELINE VALUE
+ *  ====================================================================================================
+*/  
+char math(void)
+{
+  //Get current data averages, ignoring baseline readings
+  //Serial.println("Gathering my Data!");
+  for(int z=0; z<16; z++)
+  {
+    ReadCurrentValue();
+    data1[z] = CurrentValue1;
+    data2[z] = CurrentValue2;
+    Serial.println(CurrentValue1);
+    Serial.println(CurrentValue2);
+    delay(10);
+  }
+  int sum1 = 0;
+  int sum2 = 0;
+
+  //Serial.println("Doing some maths, here are your findings:");
+  for(int y=2; y<14; y++)
+  {
+    sum1 = sum1 + data1[y];
+    sum2 = sum2 + data2[y];
+  }
+  
+  long final1 = sum1/12;
+  long final2 = sum2/12;
+
+  //report findings!!!
+  Serial.println("Final1: ");
+  Serial.println(final1);
+  Serial.println("Final2: ");
+  Serial.println(final2);
+  
+  //Set decision integer:
+  //F = plastic
+  //B = metal
+  char result;
+  //Math stuffs
+  //statement for when CAN hides half of the lights
+  if(((final1 < 100) || (final2 < 100))&&((final1 > 1000) || (final2 > 1000))){
+    result = 'B';
+    Serial.println("Moving Backwards - statement 1");
+  }
+  //statement for when we get a monster can
+  else if((final1 < 35) && (final2 < 35)){
+    result = 'B';
+    Serial.println("Moving Backwards - statement 2");
+  }
+  //statement for when we get a gatorade bottle
+  //else if(((final1 > 35) && (final1 < 200))||((final2 > 35) && (final2 < 200))){
+    //result = 'F';
+    //Serial.println("Moving Forwards - statement 3");
+  //}
+  //statement for when we get a label on half of the sensor
+  //else if(((final1 < 200) || (final2 < 1000)) && ((final2 < 200) || (final1 < 1000))){
+    //result = 'F';
+    //Serial.println("Moving Forwards - statement 4");
+  //}
+  //statement for when we get clear plastic on both sensors
+  else if((final1 > 800) && (final2 > 800)){
+    result = 'F';
+    Serial.println("Moving Forward - statement 5");
+  }
+    else if((final1 < 350) && (final2 < 350)){
+    result = 'B';
+    Serial.println("Moving Backwards - statement 6");
+  }
+  else{
+  result = 'F';
+  Serial.println("Moving Forwards - statement 7");
+  }
+  return result;
+}
+
+
+/*  SETUP FUNCTION
+ *  ====================================================================================================
+*/
+void setup() {
+  
+  Serial.begin(9600);
+    /* Initialise the sensor 1 */
+  if(!tsl1.begin())
+  {
+    /* There was a problem detecting the ADXL345 ... check your connections */
+    Serial.print("Ooops, no TSL2561 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
+
+  /* Initialise the sensor 2 */
+  if(!tsl2.begin())
+  {
+    /* There was a problem detecting the ADXL345 ... check your connections */
+    Serial.print("Ooops, no TSL2561 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
+  
+  /* Setup the sensor gain and integration time */
+  configureSensor();
+}
+
+/*  LOOP FUNCTION
+ *  ====================================================================================================
+*/  
+void loop() {
+  //Loop Characters for triggering different functions
+  char movingChar = '0';
+
+  //Centering the Flipper
+  movingChar = 'C';
+  moving(movingChar);
+
+  //Read in the baseline lux value
+  ReadBaselineValue();
+
+  //Trigger intake roller
+  movingChar = 'I';
+  moving(movingChar);
+  Serial.println("Dropping Bottle");
+
+  //Wait for bottle to fall
+  delay(2500);
+
+  //Read in current lux value
+  //ReadCurrentValue();
+
+  //movingChar = 'S';
+  //moving(movingChar);
+  //Serial.println("Headed to math function...");
+
+  //After bottle has settled, do math, and send result to moving function
+  movingChar = math();
+  moving(movingChar);
+//  math();
+//  if(decision == 1){
+//    movingChar = 'F';
+//    moving(movingChar);
+//  }
+//  if(decision = 2){
+//    movingChar = 'B';
+//    moving(movingChar);
+//  }
+}
+
+/* DOCUMENTATION:
+ *  This driver uses the Adafruit unified sensor library (Adafruit_Sensor),
+   which provides a common 'type' for sensor data and some helper functions.
+   
+   To use this driver you will also need to download the Adafruit_Sensor
+   library and include it in your libraries folder.
+
+   You should also assign a unique ID to this sensor for use with
+   the Adafruit Sensor API so that you can identify this particular
+   sensor in any data logs, etc.  To assign a unique ID, simply
+   provide an appropriate value in the constructor below (12345
+   is used by default in this example).
+   
+   Connections
+   ===========
+   Connect SCL to analog 5
+   Connect SDA to analog 4
+   Connect VDD to 3.3V DC
+   Connect GROUND to common ground
+
+   I2C Address
+   ===========
+   The address will be different depending on whether you leave
+   the ADDR pin floating (addr 0x39), or tie it to ground or vcc. 
+   The default addess is 0x39, which assumes the ADDR pin is floating
+   (not connected to anything).  If you set the ADDR pin high
+   or low, use TSL2561_ADDR_HIGH (0x49) or TSL2561_ADDR_LOW
+   (0x29) respectively.
+    
+   History
+   =======
+   2013/JAN/31  - First version (KTOWN)
+*/
