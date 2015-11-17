@@ -1,0 +1,66 @@
+/*
+    Ultrasonic sensor Pins:
+        VCC: +5VDC
+        Trig : Trigger (INPUT) - Pin11
+        Echo: Echo (OUTPUT) - Pin 12
+        GND: GND
+ */
+
+#include <Servo.h>
+ 
+int trigPin = 11;    //Trig - green Jumper
+int echoPin = 12;    //Echo - yellow Jumper
+
+int LCpin = 9;
+int HCpin = 10;
+
+Servo HC;
+Servo LC;
+
+long duration, cm, inches;
+
+void getdistance(void)
+{
+  Serial.begin(9600);
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(5);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  pinMode(echoPin, INPUT);
+  duration = pulseIn(echoPin, HIGH);
+ 
+  cm = (duration/2) / 29.1; 
+}
+
+void setup() {
+  //Serial Port begin
+  Serial.begin (9600);
+  //Define inputs and outputs
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  //HC.attach(HCpin);
+  //LC.attach(LCpin);
+}
+ 
+void loop()
+{
+  getdistance();
+  //Serial.println(cm);
+  delay(7000);
+  //if(cm > 20.0)
+//  {
+//    Serial.println("Running Low");    
+//    LC.attach(LCpin);
+//    delay(5000);
+//    LC.detach();
+//  }
+
+
+  HC.attach(HCpin);
+  delay(5000);
+  HC.detach();
+  delay(250);
+}
+
